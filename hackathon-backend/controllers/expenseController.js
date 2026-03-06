@@ -1,74 +1,197 @@
-import Task from "../models/Task.js";
+import Expense from "../models/expense.js";
 
-// CREATE
-export const createTask = async (req, res) => {
+/*
+CREATE EXPENSE
+POST /api/expenses
+Protected Route
+*/
+export const createEXPENSE = async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, amount, category, date, note } = req.body;
 
-    const task = await Task.create({
+    if (!title || !amount || !category) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, amount and category are required"
+      });
+    }
+
+    const expense = await Expense.create({
       title,
-      description,
+      amount,
+      category,
+      date,
+      note,
       user: req.user._id
     });
 
-    res.status(201).json(task);
+    res.status(201).json({
+      success: true,
+      message: "Expense added successfully",
+      data: expense
+    });
+
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
-// GET ALL (only user’s tasks)
-export const getTasks = async (req, res) => {
-  try {
-    const tasks = await Task.find({ user: req.user._id });
 
-    res.json(tasks);
+
+
+/*
+GET ALL EXPENSES
+GET /api/expenses
+Protected Route
+*/
+export const getEXPENSES = async (req, res) => {
+  try {
+
+    const expenses = await Expense.find({ user: req.user._id })
+      .sort({ date: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: expenses.length,
+      data: expenses
+    });
+
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
-// UPDATE
-export const updateTask = async (req, res) => {
+
+
+
+/*
+GET SINGLE EXPENSE
+GET /api/expenses/:id
+Protected Route
+*/
+export const getEXPENSEById = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
 
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
+    const expense = await Expense.findById(req.params.id);
+
+    if (!expense) {
+      return res.status(404).json({
+        success: false,
+        message: "Expense not found"
+      });
     }
 
-    if (task.user.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: "Not authorized" });
+    if (expense.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized"
+      });
     }
 
-    task.title = req.body.title || task.title;
-    task.description = req.body.description || task.description;
+    res.status(200).json({
+      success: true,
+      data: expense
+    });
 
-    const updatedTask = await task.save();
-
-    res.json(updatedTask);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
-// DELETE
-export const deleteTask = async (req, res) => {
+
+
+
+/*
+UPDATE EXPENSE
+PUT /api/expenses/:id
+Protected Route
+*/
+export const updateEXPENSE = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
 
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
+    const expense = await Expense.findById(req.params.id);
+
+    if (!expense) {
+      return res.status(404).json({
+        success: false,
+        message: "Expense not found"
+      });
     }
 
-    if (task.user.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: "Not authorized" });
+    if (expense.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized"
+      });
     }
-    
-    await task.deleteOne();
 
-    res.json({ message: "Task removed" });
+    const updatedExpense = await Expense.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Expense updated successfully",
+      data: updatedExpense
+    });
+
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+
+
+/*
+DELETE EXPENSE
+DELETE /api/expenses/:id
+Protected Route
+*/
+export const deleteEXPENSE = async (req, res) => {
+  try {
+
+    const expense = await Expense.findById(req.params.id);
+
+    if (!expense) {
+      return res.status(404).json({
+        success: false,
+        message: "Expense not found"
+      });
+    }
+
+    if (expense.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized"
+      });
+    }
+
+    await expense.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: "Expense deleted successfully"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
