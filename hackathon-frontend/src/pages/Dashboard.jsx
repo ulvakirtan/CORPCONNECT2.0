@@ -1,8 +1,24 @@
+
 import { useEffect, useState, useMemo } from "react";
 import API from "../services/api";
 import { useNavigate } from "react-router-dom";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 
 const CATEGORIES = ["Food", "Travel", "Stationery", "Shopping", "Entertainment", "Other"];
+
+const DATE_FILTERS = [
+  { value: "all", label: "All time" },
+  { value: "7", label: "Last 7 days" },
+  { value: "30", label: "Last 30 days" },
+];
 
 const CATEGORY_COLORS = {
   Food: "#63ebb2",
@@ -51,11 +67,14 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
-
+  const [search, setSearch] = useState("");
+  const [date, setDate] = useState("");
+  const [budget, setBudget] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
   useEffect(() => {
-    if (!token) { navigate("/login"); return; }
+    if (!token) { navigate("/"); return; }
     fetchExpenses();
-  }, []);
+  }, [navigate, token]);
 
   const fetchExpenses = async () => {
     try {
@@ -72,13 +91,13 @@ export default function Dashboard() {
 
   const addExpense = async (e) => {
     e.preventDefault();
-    if (!title || !amount || !category) return;
+    if (!title || !amount || !category || !date) return;
     setAdding(true);
     try {
-      await API.post("/expenses", { title, amount: parseFloat(amount), category, note },
+      await API.post("/expenses", { title, amount: parseFloat(amount), category, note, date },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setTitle(""); setAmount(""); setCategory("Food"); setNote("");
+      setTitle(""); setAmount(""); setCategory("Food"); setNote(""); setDate("");
       setShowForm(false);
       fetchExpenses();
     } catch {
@@ -101,10 +120,11 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    navigate("/login");
+    navigate("/");
   };
 
   const totalSpent = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
+  const remaining = budget ? budget - totalSpent : 0;
 
   const categoryTotals = useMemo(() => {
     const totals = {};
@@ -119,10 +139,86 @@ export default function Dashboard() {
     return Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
   }, [categoryTotals]);
 
-  const filteredExpenses = useMemo(() =>
-    filterCat === "All" ? expenses : expenses.filter((e) => e.category === filterCat),
-    [expenses, filterCat]
-  );
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((exp) => {
+
+      const expDate = new Date(exp.date || exp.createdAt);
+      const today = new Date();
+
+      if (dateFilter === "7") {
+        const last7 = new Date();
+        last7.setDate(today.getDate() - 7);
+        if (expDate < last7) return false;
+      }
+
+      if (dateFilter === "30") {
+        const last30 = new Date();
+        last30.setDate(today.getDate() - 30);
+        if (expDate < last30) return false;
+      }
+
+      if (filterCat !== "All" && exp.category !== filterCat) {
+        return false;
+      }
+
+      if (!exp.title.toLowerCase().includes(search.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+  }, [expenses, filterCat, search, dateFilter]);
+
+  const monthlyData = useMemo(() => {
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+
+    const totals = new Array(12).fill(0);
+
+    filteredExpenses.forEach((exp) => {
+      const date = new Date(exp.date || exp.createdAt);
+      const month = date.getMonth();
+      totals[month] += exp.amount;
+    });
+
+    return months.map((month, idx) => ({
+      month,
+      amount: totals[idx],
+    }));
+  }, [filteredExpenses]);
+
+  const downloadCSV = () => {
+    const headers = ["Title", "Amount", "Category", "Note", "Date"];
+
+    const rows = filteredExpenses.map(exp => [
+      exp.title,
+      exp.amount,
+      exp.category,
+      exp.note,
+      exp.date
+    ]);
+    const summary = [
+      ["Monthly Budget", budget],
+      ["Total Spend", totalSpent],
+      ["Remaining", remaining],
+      []
+    ];
+
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers, ...rows, ...summary].map(e => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "expenses.csv");
+
+    document.body.appendChild(link);
+    link.click();
+  };
 
   // Simple donut chart using SVG
   const DonutChart = () => {
@@ -260,10 +356,62 @@ export default function Dashboard() {
         .btn-logout:hover { color: #fff; background: rgba(255,255,255,0.08); }
 
         /* LAYOUT */
+        html, body, #root {
+          height: 100%;
+          width: 100%;
+          overflow-x: hidden;
+        }
+
         .dash-content {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 32px 24px;
+            width: 100%;
+            max-width: 1400px;
+            margin: auto;
+            padding: 32px 40px;
+          }
+
+          @media (max-width: 900px) {
+            .dash-content {
+              padding: 24px 20px;
+            }
+          }
+
+          @media (max-width: 600px) {
+            .dash-content {
+              padding: 18px 12px;
+            }
+          }
+
+          .page-title { font-size: 24px; }
+          .page-sub { font-size: 13px; }
+
+          .navbar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px 18px;
+          }
+
+          .nav-right {
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .btn-add, .btn-logout {
+            flex: 1;
+            text-align: center;
+          }
+
+          .btn-add { padding: 8px 12px; }
+          .btn-logout { padding: 8px 12px; }
+
+          .filter-pills {
+            justify-content: center;
+          }
+
+          .pill {
+            font-size: 11px;
+            padding: 5px 10px;
+          }
         }
 
         .page-title {
@@ -326,13 +474,40 @@ export default function Dashboard() {
         /* MAIN GRID */
         .main-grid {
           display: grid;
-          grid-template-columns: 1fr 320px;
+          grid-template-columns: 2fr 1fr;
           gap: 20px;
           align-items: start;
+          width: 100%;
         }
 
-        @media (max-width: 900px) {
-          .main-grid { grid-template-columns: 1fr; }
+        @media (max-width: 1100px) {
+          .main-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 650px) {
+          .main-grid {
+            gap: 12px;
+          }
+
+          .exp-amount {
+            font-size: 14px;
+          }
+
+          .exp-title {
+            font-size: 14px;
+          }
+
+          .form-field input,
+          .form-field textarea {
+            font-size: 13px;
+          }
+
+          .cat-btn {
+            padding: 8px 6px;
+            font-size: 11px;
+          }
         }
 
         /* EXPENSES LIST */
@@ -341,6 +516,7 @@ export default function Dashboard() {
           border: 1px solid rgba(255,255,255,0.07);
           border-radius: 20px;
           overflow: hidden;
+          min-width: 0;
         }
 
         .panel-header {
@@ -461,7 +637,7 @@ export default function Dashboard() {
         .empty-state p { font-size: 14px; }
 
         /* SIDEBAR */
-        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+        .sidebar { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
         .chart-panel {
           background: rgba(255,255,255,0.03);
@@ -479,6 +655,7 @@ export default function Dashboard() {
         }
 
         .chart-wrap {
+          width: 100%;
           display: flex;
           justify-content: center;
           margin-bottom: 20px;
@@ -697,6 +874,7 @@ export default function Dashboard() {
             </div>
             <div className="nav-right">
               <button className="btn-add" onClick={() => setShowForm(true)}>+ Add Expense</button>
+              <button className="btn-logout" onClick={downloadCSV}>Download CSV</button>
               <button className="btn-logout" onClick={handleLogout}>Log out</button>
             </div>
           </nav>
@@ -704,6 +882,21 @@ export default function Dashboard() {
           <div className="dash-content">
             <h1 className="page-title">Dashboard</h1>
             <p className="page-sub">Track and manage your daily expenses</p>
+            <div style={{ marginBottom: "20px" }}>
+              <input
+                type="number"
+                placeholder="Enter Monthly Budget"
+                value={budget}
+                onChange={(e) => setBudget(Number(e.target.value))}
+                style={{
+                  padding: "10px",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "white"
+                }}
+              />
+            </div>
 
             {/* STATS */}
             <div className="stats-grid">
@@ -733,6 +926,16 @@ export default function Dashboard() {
                 </div>
                 <div className="stat-meta">Per transaction</div>
               </div>
+              <div className="stat-card">
+                <div className="stat-label">Monthly Budget</div>
+                <div className="stat-meta">Budget: {formatCurrency(budget || 0)}</div>
+                <div className="stat-value green">{formatCurrency(remaining)}</div>
+                {budget && totalSpent > budget * 0.8 && (
+                  <div style={{ color: "orange", marginTop: "8px", fontSize: "12px" }}>
+                    ⚠ Warning: You used most of your monthly budget!
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* MAIN GRID */}
@@ -740,7 +943,8 @@ export default function Dashboard() {
               {/* EXPENSES */}
               <div className="panel">
                 <div className="panel-header">
-                  <span className="panel-title">Expenses</span>
+                <span className="panel-title">Expenses</span>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
                   <div className="filter-pills">
                     {["All", ...CATEGORIES].map((c) => (
                       <button
@@ -752,6 +956,35 @@ export default function Dashboard() {
                       </button>
                     ))}
                   </div>
+                  <div className="filter-pills">
+                    {DATE_FILTERS.map((df) => (
+                      <button
+                        key={df.value}
+                        className={`pill ${dateFilter === df.value ? "active" : ""}`}
+                        onClick={() => setDateFilter(df.value)}
+                      >
+                        {df.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+                <div style={{ padding: "10px 24px" }}>
+                  <input
+                    type="text"
+                    placeholder="Search expense..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      borderRadius: "8px",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      background: "rgba(255,255,255,0.05)",
+                      color: "white"
+                    }}
+                  />
                 </div>
 
                 <div className="expense-list">
@@ -782,6 +1015,21 @@ export default function Dashboard() {
 
               {/* SIDEBAR */}
               <div className="sidebar">
+                <div className="chart-panel">
+                  <div className="chart-title">Monthly Spending</div>
+                  <div className="chart-wrap" style={{ height: 200 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid stroke="rgba(255,255,255,0.1)" strokeDasharray="3 3" />
+                        <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 12 }} axisLine={{ stroke: "rgba(255,255,255,0.2)" }} tickLine={{ stroke: "rgba(255,255,255,0.2)" }} />
+                        <YAxis tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 12 }} axisLine={{ stroke: "rgba(255,255,255,0.2)" }} tickLine={{ stroke: "rgba(255,255,255,0.2)" }} />
+                        <Tooltip contentStyle={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }} />
+                        <Bar dataKey="amount" fill="#63ebb2" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
                 <div className="chart-panel">
                   <div className="chart-title">Spending by Category</div>
                   <div className="chart-wrap"><DonutChart /></div>
@@ -855,6 +1103,16 @@ export default function Dashboard() {
                   </div>
 
                   <div className="form-field">
+                    <label>Date</label>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-field">
                     <label>Note (optional)</label>
                     <textarea
                       placeholder="Any extra details..."
@@ -872,8 +1130,9 @@ export default function Dashboard() {
           )}
 
           {error && <div className="error-toast">{error}</div>}
-        </div>
-      )}
+        </div >
+      )
+      }
     </>
   );
 }

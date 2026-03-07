@@ -30,43 +30,62 @@ function Register() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+          background: #0a0a0f !important;
+          min-height: 100vh;
+          /* NEVER hide overflow on html/body — breaks scroll */
+          overflow-x: hidden;
+        }
 
         .auth-root {
           min-height: 100vh;
           background: #0a0a0f;
           display: flex;
+          align-items: stretch;
           font-family: 'DM Sans', sans-serif;
-          overflow: hidden;
+          /* NO overflow:hidden here — was killing scroll */
           position: relative;
         }
 
         .auth-bg {
-          position: absolute;
+          position: fixed;
           inset: 0;
           background:
             radial-gradient(ellipse 80% 60% at 80% 50%, rgba(99,235,178,0.07) 0%, transparent 60%),
             radial-gradient(ellipse 60% 80% at 20% 20%, rgba(99,180,235,0.06) 0%, transparent 55%),
             radial-gradient(ellipse 40% 40% at 40% 80%, rgba(235,180,99,0.04) 0%, transparent 50%);
+          pointer-events: none;
+          z-index: 0;
         }
 
         .grid-overlay {
-          position: absolute;
+          position: fixed;
           inset: 0;
           background-image:
             linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
           background-size: 60px 60px;
+          pointer-events: none;
+          z-index: 0;
         }
 
+        /* ── LEFT PANEL ── */
         .auth-left {
           width: 480px;
+          flex-shrink: 0;
+          /* min-height so it grows with content, never clips */
+          min-height: 100vh;
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 48px;
+          /* vertical padding so card never touches edges on small screens */
+          padding: 48px 40px;
           position: relative;
           z-index: 1;
+          background: rgba(10, 10, 15, 0.9);
+          border-right: 1px solid rgba(255,255,255,0.06);
         }
 
         .auth-card {
@@ -105,9 +124,7 @@ function Register() {
 
         .brand-name span { color: #63ebb2; }
 
-        .card-header {
-          margin-bottom: 32px;
-        }
+        .card-header { margin-bottom: 32px; }
 
         .card-header h2 {
           font-family: 'Syne', sans-serif;
@@ -118,14 +135,9 @@ function Register() {
           margin-bottom: 8px;
         }
 
-        .card-header p {
-          font-size: 14px;
-          color: rgba(255,255,255,0.4);
-        }
+        .card-header p { font-size: 14px; color: rgba(255,255,255,0.4); }
 
-        .field {
-          margin-bottom: 18px;
-        }
+        .field { margin-bottom: 18px; }
 
         .field label {
           display: block;
@@ -158,11 +170,7 @@ function Register() {
           box-shadow: 0 0 0 3px rgba(99,235,178,0.08);
         }
 
-        .password-hint {
-          font-size: 12px;
-          color: rgba(255,255,255,0.25);
-          margin-top: 6px;
-        }
+        .password-hint { font-size: 12px; color: rgba(255,255,255,0.25); margin-top: 6px; }
 
         .error-msg {
           background: rgba(255,80,80,0.1);
@@ -216,18 +224,16 @@ function Register() {
           text-underline-offset: 3px;
         }
 
+        /* ── RIGHT PANEL ── */
         .auth-right {
           flex: 1;
+          min-height: 100vh;
           display: flex;
           flex-direction: column;
           justify-content: center;
           padding: 80px;
           position: relative;
           z-index: 1;
-        }
-
-        .perks {
-          margin-top: 0;
         }
 
         .perks h3 {
@@ -240,17 +246,9 @@ function Register() {
           margin-bottom: 32px;
         }
 
-        .perk-list {
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-        }
+        .perk-list { display: flex; flex-direction: column; gap: 24px; }
 
-        .perk {
-          display: flex;
-          align-items: flex-start;
-          gap: 16px;
-        }
+        .perk { display: flex; align-items: flex-start; gap: 16px; }
 
         .perk-icon {
           width: 44px;
@@ -273,15 +271,28 @@ function Register() {
           margin-bottom: 4px;
         }
 
-        .perk-text p {
-          font-size: 14px;
-          color: rgba(255,255,255,0.35);
-          line-height: 1.5;
-        }
+        .perk-text p { font-size: 14px; color: rgba(255,255,255,0.35); line-height: 1.5; }
 
+        /* ── RESPONSIVE ── */
         @media (max-width: 900px) {
           .auth-right { display: none; }
-          .auth-left { width: 100%; }
+          .auth-left {
+            width: 100%;
+            border-right: none;
+            padding: 48px 24px;
+            /* on mobile: don't center vertically, let content flow from top */
+            align-items: flex-start;
+            padding-top: 60px;
+          }
+          .auth-card { max-width: 480px; width: 100%; padding: 36px 28px; }
+        }
+
+        @media (max-width: 480px) {
+          .auth-left { padding: 40px 16px; }
+          .auth-card { padding: 28px 20px; border-radius: 16px; }
+          .card-header h2 { font-size: 22px; }
+          .field input { padding: 12px 14px; font-size: 14px; }
+          .btn-primary { padding: 14px; font-size: 14px; }
         }
       `}</style>
 

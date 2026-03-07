@@ -31,12 +31,19 @@ function Login() {
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        html, body, #root {
+          height: 100%;
+          background: #0a0a0f;
+        }
+
         .auth-root {
           min-height: 100vh;
+          height: 100%;
           background: #0a0a0f;
           display: flex;
+          align-items: stretch;
           font-family: 'DM Sans', sans-serif;
-          overflow: hidden;
+          overflow-x: hidden;
           position: relative;
         }
 
@@ -58,6 +65,7 @@ function Login() {
           background-size: 60px 60px;
         }
 
+        /* ── LEFT PANEL ── */
         .auth-left {
           flex: 1;
           display: flex;
@@ -145,14 +153,19 @@ function Login() {
           letter-spacing: 1px;
         }
 
+        /* ── RIGHT PANEL ── */
         .auth-right {
           width: 480px;
+          flex-shrink: 0;
           display: flex;
           align-items: center;
           justify-content: center;
           padding: 48px;
           position: relative;
           z-index: 1;
+          background: rgba(10,10,15,0.6);
+          border-left: 1px solid rgba(255,255,255,0.05);
+          align-self: stretch;
         }
 
         .auth-card {
@@ -269,9 +282,48 @@ function Login() {
           text-underline-offset: 3px;
         }
 
+        /* ── RESPONSIVE ── */
+
+        /* Tablet: hide left panel, right fills screen */
         @media (max-width: 900px) {
           .auth-left { display: none; }
-          .auth-right { width: 100%; }
+
+          .auth-right {
+            width: 100%;          /* fill entire viewport width */
+            min-height: 100vh;    /* fill entire viewport height */
+            padding: 32px 24px;
+            align-items: center;
+          }
+
+          .auth-card {
+            max-width: 480px;
+            width: 100%;
+            padding: 36px 28px;
+            border-radius: 20px;
+          }
+
+          .card-header h2 { font-size: 24px; }
+        }
+
+        /* Mobile */
+        @media (max-width: 480px) {
+          .auth-right {
+            padding: 24px 16px;
+            align-items: flex-start;
+            padding-top: 48px;
+          }
+
+          .auth-card {
+            padding: 28px 20px;
+            border-radius: 16px;
+          }
+
+          .card-header h2 { font-size: 22px; }
+          .card-header p  { font-size: 13px; }
+
+          .field input    { padding: 12px 14px; font-size: 14px; }
+          .btn-primary    { padding: 14px; font-size: 14px; }
+          .auth-footer    { font-size: 13px; }
         }
       `}</style>
 
