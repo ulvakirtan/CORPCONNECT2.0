@@ -12,6 +12,8 @@ import {
   CartesianGrid,
 } from "recharts";
 
+
+
 const CATEGORIES = ["Food", "Travel", "Stationery", "Shopping", "Entertainment", "Other"];
 
 const DATE_FILTERS = [
@@ -54,6 +56,28 @@ function formatDate(dateStr) {
   });
 }
 
+function autocategorize(title) {
+
+  const lower = title.toLowerCase();
+
+  if (lower.includes("swiggy") || lower.includes("zomato") || lower.includes("pizza"))
+    return "Food";
+
+  if (lower.includes("uber") || lower.includes("ola") || lower.includes("bus"))
+    return "Travel";
+
+  if (lower.includes("amazon") || lower.includes("flipkart"))
+    return "Shopping";
+
+  if (lower.includes("netflix") || lower.includes("game"))
+    return "Entertainment";
+
+  if (lower.includes("book") || lower.includes("pen"))
+    return "Stationery";
+
+  return "Other";
+}
+
 export default function Dashboard() {
   const [expenses, setExpenses] = useState([]);
   const [title, setTitle] = useState("");
@@ -62,6 +86,7 @@ export default function Dashboard() {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [simulating, setSimulating] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [filterCat, setFilterCat] = useState("All");
   const [error, setError] = useState("");
@@ -89,23 +114,80 @@ export default function Dashboard() {
     }
   };
 
-  const addExpense = async (e) => {
-    e.preventDefault();
-    if (!title || !amount || !category || !date) return;
-    setAdding(true);
+  const simulateTransaction = async () => {
+    setSimulating(true);
+    setError("");
+
+    const samples = [
+      { title: "Swiggy order", amount: 350 },
+      { title: "Uber ride", amount: 220 },
+      { title: "Amazon purchase", amount: 1200 },
+      { title: "Netflix subscription", amount: 499 }
+    ];
+
+    const random = samples[Math.floor(Math.random() * samples.length)];
+
     try {
-      await API.post("/expenses", { title, amount: parseFloat(amount), category, note, date },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await API.post(
+        "/expenses",
+        {
+          title: random.title,
+          amount: random.amount,
+          category: autocategorize(random.title),
+          note: "Auto detected",
+          date: new Date().toISOString(),
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
-      setTitle(""); setAmount(""); setCategory("Food"); setNote(""); setDate("");
-      setShowForm(false);
+
       fetchExpenses();
     } catch {
-      setError("Failed to add expense.");
+      setError("Failed to simulate transaction.");
     } finally {
-      setAdding(false);
+      setSimulating(false);
     }
   };
+
+ const addExpense = async (e) => {
+  e.preventDefault();
+
+  if (!title || !amount || !date) return;
+
+  setAdding(true);
+
+  try {
+
+    const detectedCategory = autocategorize(title);
+
+    await API.post(
+      "/expenses",
+      {
+        title,
+        amount: parseFloat(amount),
+        category: detectedCategory,
+        note,
+        date
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setTitle("");
+    setAmount("");
+    setCategory("Food");
+    setNote("");
+    setDate("");
+
+    setShowForm(false);
+    fetchExpenses();
+
+  } catch {
+    setError("Failed to add expense.");
+  } finally {
+    setAdding(false);
+  }
+};
 
   const deleteExpense = async (id) => {
     try {
@@ -874,6 +956,9 @@ export default function Dashboard() {
             </div>
             <div className="nav-right">
               <button className="btn-add" onClick={() => setShowForm(true)}>+ Add Expense</button>
+              <button className="btn-add" onClick={simulateTransaction} disabled={simulating}>
+                {simulating ? "Simulating…" : "Simulate Bank Transaction"}
+              </button>
               <button className="btn-logout" onClick={downloadCSV}>Download CSV</button>
               <button className="btn-logout" onClick={handleLogout}>Log out</button>
             </div>
